@@ -3,9 +3,9 @@ require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  defaultNetwork: "arb",
+  defaultNetwork: "sepolia",
   networks: {
-    arb: {
+    sepolia: {
       url: process.env.RPC_URL,
       accounts: [process.env.PRIVATE_KEY],
     },
