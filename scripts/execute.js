@@ -1,8 +1,8 @@
 const hre = require("hardhat");
 
-const FACTORY_ADDRESS = "0x055E1DBC330D722ffC8a89164df8DB2c3eCCBE00";
+const FACTORY_ADDRESS = "0x8542e86550F497b84350630fF23D2815c8Ce5928";
 const EP_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const PM_ADDRESS = "0xe960E5E63e811812b2F5287D026f1aa6cA67E7f6";
+const PM_ADDRESS = "0xbb7187A1990007578d791BDEFefe7d821fEb045B";
 
 async function main() {
   const entryPoint = await hre.ethers.getContractAt("EntryPoint", EP_ADDRESS);
@@ -10,6 +10,11 @@ async function main() {
   const AccountFactory = await hre.ethers.getContractFactory("AccountFactory");
   const [signer0, signer1] = await hre.ethers.getSigners();
   const address0 = await signer0.getAddress();
+  
+  /*
+  We call createAccount function from the accountFactory contract in order to create a smart account
+  The function returns the already deployed contract address if the caller has already created his smart acount
+  */ 
   let initCode =
     FACTORY_ADDRESS +
     AccountFactory.interface
@@ -30,7 +35,11 @@ async function main() {
 
   console.log({ sender });
 
-
+  /* 
+  Implementation of a userOperation. Nonce is managed by fetching the nonce if the smart account
+  we call execute function which is going to increment the `count` storage variable.
+  the signature is by default for now. See below how it is implemented.
+  */
   const Account = await hre.ethers.getContractFactory("Account");
   const userOp = {
     sender, // smart account address
@@ -41,6 +50,13 @@ async function main() {
     signature:
       "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c",
   };
+
+
+  /*
+  We call eth_estimateUserOperationGas which is included in the bundler API endpoint.
+  It calculates the preVerificationGas, verificationGasLimit and the callGasLimit which is going to be used
+  by the endpoint to manage the paymaster contract. 
+  */
 
   const { preVerificationGas, verificationGasLimit, callGasLimit } =
     await ethers.provider.send("eth_estimateUserOperationGas", [
@@ -64,6 +80,11 @@ async function main() {
   const userOpHash = await entryPoint.getUserOpHash(userOp);
   userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
 
+  /*
+  low-level method used to send JSON-RPC requests directly to the bundler. 
+  It does not involve signing transactions or using a private key. 
+  Instead, it sends raw requests to the bundler
+  */ 
   const opHash = await ethers.provider.send("eth_sendUserOperation", [
     userOp,
     EP_ADDRESS,
@@ -78,7 +99,7 @@ async function main() {
     );
 
     console.log(transactionHash);
-  }, 5000);
+  }, 30000);
 }
 
 main().catch((error) => {
